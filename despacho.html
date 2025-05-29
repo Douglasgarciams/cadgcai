@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Despacho</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      background-image: url('https://str1.lnmimg.com/img/2024/06/05/dc64e79213673a1301f91e2e81251c47.webp');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    .container {
+      background-color: #f0ffea;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      max-width: 95%;
+      margin: 20px auto;
+    }
+    h1 {
+      text-align: center;
+      color: #00273c;
+      margin-bottom: 20px;
+    }
+    .atendimento-item {
+      border: 1px solid #00273c;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 4px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .atendimento-info {
+      flex: 1;
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      color: #00273c;
+    }
+    .despacho-form {
+      flex: 1;
+    }
+    .despacho-form label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #070081;
+    }
+    .despacho-form input {
+      width: calc(100% - 12px);
+      padding: 4px;
+      border: 1px solid #ccc;
+      border-radius: 15px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    .despacho-form button {
+      background-color: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      width: auto;
+      display: block;
+      margin-top: 10px;
+    }
+    .despacho-form button:hover {
+      background-color: #070081;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Painel de Despacho</h1>
+    <div id="listaAtendimentos"></div>
+  </div>
+
+<script>
+    const urlWebApp = 'https://script.google.com/macros/s/AKfycbwCYLl3pzuSSXXL_gfrHwz1sRtP-6PiagQt53qK8hDbuvnJtENtdjWZ7DF_iQvriI3P/exec';
+    const dadosDespachoLocal = {};
+
+    function abrirNoGoogleMaps(endereco) {
+        if (endereco) {
+            const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
+            window.open(url, '_blank');
+        } else {
+            alert("Endereço não encontrado.");
+        }
+    }
+
+    function buscarAtendimentosPendentes() {
+        fetch(`${urlWebApp}?action=listarPendentes`)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                const listaAtendimentosDiv = document.getElementById('listaAtendimentos');
+                listaAtendimentosDiv.innerHTML = '';
+
+                if (data.length > 0) {
+                    data.forEach(atendimento => {
+                        const numeroAtendimento = atendimento.numeroAtendimento;
+                        const enderecoReferencia = atendimento['ENDEREÇO']; // Usando a chave correta
+
+                        const atendimentoDiv = document.createElement('div');
+                        atendimentoDiv.className = 'atendimento-item';
+                        atendimentoDiv.dataset.numeroAtendimento = numeroAtendimento;
+                        atendimentoDiv.dataset.endereco = atendimento['ENDEREÇO']; // Usando a chave correta
+
+                        let infoHtml = '<div class="atendimento-info">';
+                        for (const key in atendimento) {
+                            if (!['viaturaAtendimento', 'horaVisualizacao', 'conclusao', 'horaConclusao', 'analistaEmpenho', 'numeroAtendimento'].includes(key)) {
+                                const displayKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                let valor = atendimento[key];
+                                if ((key.toLowerCase().includes('data') || key.toLowerCase().includes('registro')) && valor) {
+                                    valor = formatarData(valor);
+                                } else if ((key.toLowerCase().includes('hora')) && valor) {
+                                    valor = formatarHora(valor);
+                                }
+                                let paragrafo = `<p><strong>${displayKey}:</strong> ${valor}</p>`;
+                                if (key === 'ENDEREÇO' && valor) { // Usando a chave correta
+                                    paragrafo = `<p><strong>${displayKey}:</strong> ${valor} <button class="map-button" onclick="abrirNoGoogleMaps('${valor}')">Ver no Mapa</button></p>`;
+                                }
+                                infoHtml += paragrafo;
+                            }
+                        }
+                        infoHtml += '</div>';
+
+                        const despachoForm = document.createElement('form');
+                        despachoForm.className = 'despacho-form';
+                        despachoForm.innerHTML = `
+                            <label>Viatura:</label>
+                            <input type="text" id="viaturaAtendimento_${numeroAtendimento}" value="${dadosDespachoLocal[numeroAtendimento]?.viaturaAtendimento || atendimento.viaturaAtendimento || ''}">
+
+                            <label>Hora Visualização:</label>
+                            <input type="datetime-local" id="horaVisualizacao_${numeroAtendimento}" value="${dadosDespachoLocal[numeroAtendimento]?.horaVisualizacao || atendimento.horaVisualizacao || ''}">
+
+                            <label>Conclusão:</label>
+                            <input type="text" id="conclusao_${numeroAtendimento}" value="${dadosDespachoLocal[numeroAtendimento]?.conclusao || atendimento.conclusao || ''}">
+
+                            <label>Hora Conclusão:</label>
+                            <input type="datetime-local" id="horaConclusao_${numeroAtendimento}" value="${dadosDespachoLocal[numeroAtendimento]?.horaConclusao || atendimento.horaConclusao || ''}">
+
+                            <label>Analista Empenho:</label>
+                            <input type="text" id="analistaEmpenho_${numeroAtendimento}" value="${dadosDespachoLocal[numeroAtendimento]?.analistaEmpenho || atendimento.analistaEmpenho || ''}">
+
+                            <button type="button" onclick="salvarDespacho('${numeroAtendimento}')" style="margin-right: 5px;">Salvar Despacho</button>
+                            <button type="button" class="map-button" onclick="abrirNoGoogleMaps(this.closest('.atendimento-item').dataset.endereco)">Ver no Mapa</button>
+                            <div id="mensagem_${numeroAtendimento}" class="mensagem" style="display:none;color:green;margin-top:5px;"></div>
+                        `;
+
+                        atendimentoDiv.innerHTML = infoHtml;
+                        atendimentoDiv.appendChild(despachoForm);
+                        listaAtendimentosDiv.appendChild(atendimentoDiv);
+
+                        const viaturaInput = despachoForm.querySelector(`#viaturaAtendimento_${numeroAtendimento}`);
+                        const horaVisualizacaoInput = despachoForm.querySelector(`#horaVisualizacao_${numeroAtendimento}`);
+                        const conclusaoInput = despachoForm.querySelector(`#conclusao_${numeroAtendimento}`);
+                        const horaConclusaoInput = despachoForm.querySelector(`#horaConclusao_${numeroAtendimento}`);
+                        const analistaEmpenhoInput = despachoForm.querySelector(`#analistaEmpenho_${numeroAtendimento}`);
+
+                        [viaturaInput, horaVisualizacaoInput, conclusaoInput, horaConclusaoInput, analistaEmpenhoInput].forEach(input => {
+                            input.addEventListener('input', () => {
+                                dadosDespachoLocal[numeroAtendimento] = {
+                                    viaturaAtendimento: viaturaInput.value,
+                                    horaVisualizacao: horaVisualizacaoInput.value,
+                                    conclusao: conclusaoInput.value,
+                                    horaConclusao: horaConclusaoInput.value,
+                                    analistaEmpenho: analistaEmpenhoInput.value
+                                };
+                            });
+                        });
+
+                        viaturaInput.addEventListener('change', () => {
+                            if (viaturaInput.value && !horaVisualizacaoInput.value) {
+                                horaVisualizacaoInput.value = formatarDataHoraAtual();
+                                dadosDespachoLocal[numeroAtendimento].horaVisualizacao = horaVisualizacaoInput.value;
+                            }
+                        });
+
+                        conclusaoInput.addEventListener('change', () => {
+                            if (conclusaoInput.value && !horaConclusaoInput.value) {
+                                horaConclusaoInput.value = formatarDataHoraAtual();
+                                dadosDespachoLocal[numeroAtendimento].horaConclusao = horaConclusaoInput.value;
+                            }
+                        });
+
+                        if (atendimento.analistaEmpenho) {
+                            atendimentoDiv.classList.add('hidden');
+                        }
+                    });
+                } else {
+                    listaAtendimentosDiv.innerHTML = '<p>Não há atendimentos pendentes para despacho.</p>';
+                }
+            })
+            .catch(error => console.error('Erro ao buscar atendimentos:', error));
+    }
+
+    function salvarDespacho(numeroAtendimento) {
+        const viaturaAtendimento = document.getElementById(`viaturaAtendimento_${numeroAtendimento}`).value;
+        const horaVisualizacao = document.getElementById(`horaVisualizacao_${numeroAtendimento}`).value;
+        const conclusao = document.getElementById(`conclusao_${numeroAtendimento}`).value;
+        const horaConclusao = document.getElementById(`horaConclusao_${numeroAtendimento}`).value;
+        const analistaEmpenho = document.getElementById(`analistaEmpenho_${numeroAtendimento}`).value;
+
+        fetch(urlWebApp, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                action: 'salvarDespacho',
+                numeroAtendimento,
+                viaturaAtendimento,
+                horaVisualizacao,
+                conclusao,
+                horaConclusao,
+                analistaEmpenho
+            })
+        })
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text();
+            })
+            .then(resposta => {
+                const msgDiv = document.getElementById(`mensagem_${numeroAtendimento}`);
+                msgDiv.style.display = 'block';
+                msgDiv.textContent = 'Despacho salvo com sucesso!';
+                setTimeout(() => msgDiv.style.display = 'none', 3000);
+                buscarAtendimentosPendentes();
+            })
+            .catch(error => {
+                console.error('Erro ao salvar despacho:', error);
+                alert('Erro ao salvar despacho. Tente novamente.');
+            });
+    }
+
+    function formatarData(dataStr) {
+        if (!dataStr) return '';
+        const d = new Date(dataStr);
+        if (isNaN(d)) return dataStr;
+        return d.toLocaleDateString('pt-BR');
+    }
+
+    function formatarHora(horaStr) {
+        if (!horaStr) return '';
+        const d = new Date(`1970-01-01T${horaStr}`);
+        if (isNaN(d)) return horaStr;
+        return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function formatarDataHoraAtual() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    window.onload = () => {
+        buscarAtendimentosPendentes();
+        setInterval(buscarAtendimentosPendentes, 45000); // Atualiza a cada 45 segundos
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel de Atendimento</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #42c2f8;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background-color: #026a96;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 600px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #fcfcfc;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #fcfcfc;
+      font-weight: bold;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    input[type="date"],
+    input[type="time"],
+    textarea {
+      width: calc(100% - 12px);
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    button {
+      background-color: #025e22;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    .success-message {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .error-message {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .mensagem {
+      display: none; /* Inicialmente escondido */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Registro de Atendimento</h1>
+    <form id="formAtendimento">
+      <div class="form-group">
+        <label for="carimboDataHora">Carimbo de data/hora:</label>
+        <input type="datetime-local" id="carimboDataHora" name="carimboDataHora" required>
+      </div>
+      <div class="form-group">
+        <label for="endereco">ENDEREÇO:</label>
+        <input type="text" id="endereco" name="endereco" required>
+      </div>
+      <div class="form-group">
+        <label for="bairro">BAIRRO:</label>
+        <input type="text" id="bairro" name="bairro">
+      </div>
+      <div class="form-group">
+        <label for="historico">HISTORICO:</label>
+        <textarea id="historico" name="historico"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="fato">FATO:</label>
+        <textarea id="fato" name="fato"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="dataRegistro">DATA DO REGISTRO:</label>
+        <input type="date" id="dataRegistro" name="dataRegistro" required>
+      </div>
+      <div class="form-group">
+        <label for="horaRegistro">HORA DO REGISTRO:</label>
+        <input type="time" id="horaRegistro" name="horaRegistro" required>
+      </div>
+      <div class="form-group">
+        <label for="telefoneSolicitante">TELEFONE SOLICITANTE:</label>
+        <input type="text" id="telefoneSolicitante" name="telefoneSolicitante">
+      </div>
+      <div class="form-group">
+        <label for="unidadeOperacional">UNIDADE OPERACIONAL:</label>
+        <input type="text" id="unidadeOperacional" name="unidadeOperacional">
+      </div>
+      <div class="form-group">
+        <label for="atendente">ATENDENTE:</label>
+        <input type="text" id="atendente" name="atendente" required>
+      </div>
+      <button type="button" onclick="enviarFormulario()">Salvar Atendimento</button>
+      <div id="mensagem" class="mensagem" style="display:none;"></div>
+    </form>
+  </div>
+
+  <script>
+    function enviarFormulario() {
+      const formData = new FormData(document.getElementById('formAtendimento'));
+
+      // Formatar a data de registro
+      const dataRegistroInput = document.getElementById('dataRegistro');
+      const dataRegistroValue = dataRegistroInput.value;
+      const [year, month, day] = dataRegistroValue.split('-');
+      const formattedDataRegistro = `${day}-${month}-${year}`;
+      formData.set('dataRegistro', formattedDataRegistro);
+
+      // Enviar apenas a hora de registro
+    const horaRegistroInput = document.getElementById('horaRegistro');
+    const horaRegistroValue = horaRegistroInput.value;
+    formData.set('horaRegistro', horaRegistroValue);
+
+      fetch('https://script.google.com/macros/s/AKfycbwCYLl3pzuSSXXL_gfrHwz1sRtP-6PiagQt53qK8hDbuvnJtENtdjWZ7DF_iQvriI3P/exec', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams(formData).toString(),
+      })
+      .then(response => response.text())
+      .then(data => {
+        const mensagemDiv = document.getElementById('mensagem');
+        mensagemDiv.style.display = 'block';
+        if (data.includes('sucesso')) {
+          mensagemDiv.className = 'success-message';
+          mensagemDiv.textContent = data;
+          localStorage.setItem('successMessage', data); // Salva a mensagem
+          window.location.reload(); // Recarrega a página imediatamente
+        } else {
+          mensagemDiv.className = 'error-message';
+          mensagemDiv.textContent = data;
+          setTimeout(() => {
+            mensagemDiv.style.display = 'none';
+          }, 3000);
+        }
+        document.getElementById('formAtendimento').reset();
+      })
+      .catch((error) => {
+        console.error('Erro:', error);
+        const mensagemDiv = document.getElementById('mensagem');
+        mensagemDiv.style.display = 'block';
+        mensagemDiv.className = 'error-message';
+        mensagemDiv.textContent = 'Ocorreu um erro ao enviar os dados.';
+        setTimeout(() => {
+          mensagemDiv.style.display = 'none';
+        }, 3000);
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const now = new Date();
+      const dateTimeString = now.toISOString().slice(0, 16);
+      document.getElementById('carimboDataHora').value = dateTimeString;
+      document.getElementById('dataRegistro').value = now.toISOString().slice(0, 10);
+      const timeString = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('horaRegistro').value = timeString;
+
+      // Verifica se há uma mensagem de sucesso no localStorage e a exibe
+      const successMessage = localStorage.getItem('successMessage');
+      if (successMessage) {
+        const mensagemDiv = document.getElementById('mensagem');
+        mensagemDiv.style.display = 'block';
+        mensagemDiv.className = 'success-message';
+        mensagemDiv.textContent = successMessage;
+        localStorage.removeItem('successMessage'); // Limpa a mensagem após exibir
+      }
+    });
+  </script>
+</body>
+</html>
